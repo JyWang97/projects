@@ -1,0 +1,545 @@
+## FINAL COMPILED ANALYSIS
+
+setwd("C:/Users/bubbl/Documents/School Stuff (UNI)/HONORS THESIS FILES")
+library(readxl)
+
+sheets.name <- excel_sheets("final_data.xlsx")
+
+my.data <- read_xlsx("final_data.xlsx", sheet=sheets.name[1])
+#To drop the extra parts underneath the demographic sheet
+my.data <- my.data[-c(73, 74), ]
+
+
+## --------------- MODEL 1 ------------------------
+#List of sheets with correlations
+m1.cor <- list()
+
+for (i in 2:length(sheets.name)) {
+  m1.mat <- read_xlsx("final_data.xlsx", sheet=sheets.name[i])
+  # To test Model 1: set my.mat <- my.mat[1:6, 1:7]; 
+  # my.mat <- my.mat[-3:-5, -4:-6]
+  m1.mat <- m1.mat[1:6, 1:7]
+  m1.mat <- m1.mat[-3:-5, -4:-6]
+  m1.mat <- as.matrix(m1.mat[, -1])
+  m1.mat[upper.tri(m1.mat)] <- m1.mat[lower.tri(m1.mat)]
+  diag(m1.mat) <- 1
+  rownames(m1.mat) <- colnames(m1.mat)
+  m1.cor[[i-1]] <- m1.mat
+}
+
+names(m1.cor) <- sheets.name[-1]
+
+## Correlation matrices
+m1.cor
+
+## Overall sample sizes
+n <- as.numeric(my.data$Sample)
+
+## To extract the studies under Model 1: Total 47 studies
+m1 <- as.numeric(my.data$`Model 1`)
+
+# Sample sizes for studies in Model 1
+m1.n <- as.numeric(my.data$Sample[which(m1==1)])
+m1.n
+
+# List of studies under Model 1
+model1 <- my.data$`0`[which(m1==1)]
+model1
+
+# Data of studies under Model 1
+model1.data <- m1.cor[model1]
+model1.data
+
+## --------------------------------------------------------
+
+library(metaSEM)
+library(semPlot)
+## Stage 1 Analysis to test for heterogeneity
+m1.random1 <- tssem1(model1.data, m1.n, method="REM", RE.type="Diag")
+summary(m1.random1)
+
+# Extract fixed effects estimates
+(m1.est_fixed <- coef(m1.random1, select="fixed"))
+
+# Convert estimated vector to symmetrical matrix
+# where the diagonals are fixed at 1 (for corr. matrix)
+vec2symMat(m1.est_fixed, diag=FALSE)
+
+## Stage 2
+# To test Model 1
+m1.var <- c("SA", "DA", "BO")
+
+# Model 1 - A1: 3x3 matrix of factor loadings
+m1.A1 <- matrix(c(0, 0, 0,
+                  0, 0, 0,
+                  "0*SA2BO", "0*DA2BO", 0),
+                ncol=3, nrow=3, byrow=TRUE,
+                dimnames=list(m1.var, m1.var))
+m1.A1
+
+# Model 1 - S1: 3x3 matrix of variances and covariances
+m1.S1 <- Diag( c(1, 1, "0.2*ErrBO") )
+m1.S1
+
+# Specify relationship between DA & SA
+m1.S1[2,1] <- m1.S1[1,2] <- "0.3*cor"
+dimnames(m1.S1) <- list(m1.var, m1.var)
+m1.S1
+
+m1.random2 <- tssem2(m1.random1, Amatrix=m1.A1, Smatrix=m1.S1)
+summary(m1.random2)
+
+# S matrix
+mxEval(Smatrix, m1.random2$mx.fit)
+
+# R2
+mxEval(1-Smatrix, m1.random2$mx.fit)[3,3]
+
+# Convert model to semPlotModel object
+m1.plot <- meta2semPlot(m1.random2)
+
+# Plot parameter estimates
+semPaths(m1.plot, whatLabels="est", nCharNodes=10, edge.label.cex=1.5, sizeMan=8, color="yellow")
+
+## --------------- MODEL 2 ------------------------
+
+m2.cor <- list()
+
+for (i in 2:length(sheets.name)) {
+  m2.mat <- read_xlsx("final_data.xlsx", sheet=sheets.name[i])
+  # To test Model 2: set my.mat <- my.mat[1:5, 1:6]
+  m2.mat <- m2.mat[1:5, 1:6]
+  m2.mat <- as.matrix(m2.mat[, -1])
+  m2.mat[upper.tri(m2.mat)] <- m2.mat[lower.tri(m2.mat)]
+  diag(m2.mat) <- 1
+  rownames(m2.mat) <- colnames(m2.mat)
+  m2.cor[[i-1]] <- m2.mat
+}
+
+names(m2.cor) <- sheets.name[-1]
+
+# Correlation matrices
+m2.cor
+
+## To extract the studies under Model 2: Total 60 studies
+m2 <- as.numeric(my.data$`Model 2`)
+
+# Sample sizes for studies in Model 2
+m2.n <- as.numeric(my.data$Sample[which(m2==1)])
+m2.n
+
+# List of studies under Model 2
+model2 <- my.data$`0`[which(m2==1)]
+model2
+
+# Data of studies under Model 2
+model2.data <- m2.cor[model2]
+model2.data
+
+## ---------------------------------
+
+## Stage 1 Analysis to test for heterogeneity
+m2.random1 <- tssem1(model2.data, m2.n, method="REM", RE.type="Diag")
+summary(m2.random1)
+
+## Extract fixed effects estimates
+(m2.est_fixed <- coef(m2.random1, select="fixed"))
+
+## Convert estimated vector to symmetrical matrix
+## where the diagonals are fixed at 1 (for corr. matrix)
+vec2symMat(m2.est_fixed, diag=FALSE)
+
+# Stage 2
+# To test Model 2
+m2.var <- c("SA", "DA", "EE", "DP", "RPA")
+
+## Model 2 - A1: 5x5 matrix of factor loadings
+m2.A1 <- matrix(c(0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0,
+               "0*SA2EE", "0*DA2EE", 0, 0, 0,
+               "0*SA2DP", "0*DA2DP", 0, 0, 0,
+               "0*SA2RPA", "0*DA2RPA", 0, 0, 0),
+             ncol=5, nrow=5, byrow=TRUE,
+             dimnames=list(m2.var, m2.var))
+m2.A1
+
+## Model 2 - S1: 5x5 matrix of variances and covariances
+m2.S1 <- Diag( c(1, 1, "0.2*ErrEE", "0.2*ErrDP", "0.2*ErrRPA") )
+m2.S1
+
+## Specify relationship between DA & SA; between EE & DP & RPA
+m2.S1[2,1] <- m2.S1[1,2] <- "0.3*cor1"
+m2.S1[3,4] <- m2.S1[4,3] <- "0.3*cor2"
+m2.S1[3,5] <- m2.S1[5,3] <- "0.3*cor3"
+m2.S1[4,5] <- m2.S1[5,4] <- "0.3*cor4"
+dimnames(m2.S1) <- list(m2.var, m2.var)
+m2.S1
+
+m2.random2 <- tssem2(m2.random1, Amatrix=m2.A1, Smatrix=m2.S1)
+summary(m2.random2)
+
+## S matrix
+mxEval(Smatrix, m2.random2$mx.fit)
+
+## R2
+mxEval(1-Smatrix, m2.random2$mx.fit)[3,3]
+mxEval(1-Smatrix, m2.random2$mx.fit)[4,4]
+mxEval(1-Smatrix, m2.random2$mx.fit)[5,5]
+
+## Convert model to semPlotModel object
+m2.plot <- meta2semPlot(m2.random2)
+
+## Plot parameter estimates
+semPaths(m2.plot, layout="spring", whatLabels="est", nCharNodes=10, edge.label.cex=1, 
+         sizeMan=8, color="yellow")
+
+
+## ---------------- COMPARE MODEL 1 AND MODEL 2 -------------
+## To find the common studies in Model 1 and Model 2 --> Model 3
+# Sample sizes of studies in Model 3
+m3.n <- as.numeric(my.data$Sample[which(m2==1 & m1==1)])
+m3.n
+
+# To extract the studies under Model 3: Total 35 studies
+model3 <- my.data$`0`[which(m2==1 & m1==1)]
+model3
+
+# Data of studies under Model 3
+model3.data <- m2.cor[model3]
+model3.data
+
+# Create dataframe for model 3
+m3.df <- Cor2DataFrame(model3.data, m3.n, acov = "weighted")
+
+#------------
+## Model 3a: contrained model, where EE, DP, RPA are constrained to BO 
+m3a.osma <- 'EE ~ BO_DA*DA + BO_SA*SA
+            DP ~ BO_DA*DA + BO_SA*SA
+            RPA ~ BO_DA*DA + BO_SA*SA
+            SA ~~ saWITHda*DA
+            SA ~~ 1*SA
+            DA ~~ 1*DA
+            EE ~~ Erree*EE
+            DP ~~ Errdp*DP
+            RPA ~~ Errrpa*RPA
+            EE ~~ BO*DP
+            DP ~~ BO*RPA
+            RPA ~~ BO*EE'
+
+plot(m3a.osma, layout="spring", col="yellow")   
+
+## Convert the lavaan syntax into the RAM specification
+m3a.RAM1 <- lavaan2RAM(m3a.osma, obs.variables=c("SA", "DA", "EE", "DP", "RPA"))
+m3a.RAM1
+
+## Create the model implied correlation structure with implicit diagonal constraints
+m3a.M0 <- create.vechsR(A0=m3a.RAM1$A, S0=m3a.RAM1$S)
+
+## Create the heterogeneity variance-covariance matrix
+## RE.type= either "Diag" or "Symm"
+## Transform= either "expLog" or "sqSD" for better estimation on variances
+m3a.T0 <- create.Tau2(RAM=m3a.RAM1, RE.type="Diag", Transform="expLog", RE.startvalues=0.05)
+
+m3a.fit0 <- osmasem(model.name="Model 2 as Model 1", Mmatrix=m3a.M0, Tmatrix=m3a.T0, data=m3.df)
+summary(m3a.fit0)
+
+# --------------------
+## Model 3b: unconstrained models with variables of SA, DA, EE, DP, RPA
+m3b.osma <- 'EE ~ EE_DA*DA + EE_SA*SA
+            DP ~ DP_DA*DA + DP_SA*SA
+            RPA ~ RPA_DA*DA + RPA_SA*SA
+            SA ~~ saWITHda*DA
+            SA ~~ 1*SA
+            DA ~~ 1*DA
+            EE ~~ Erree*EE
+            DP ~~ Errdp*DP
+            RPA ~~ Errrpa*RPA
+            EE ~~ eeWITHdp*DP
+            DP ~~ dpWITHrpa*RPA
+            RPA ~~ rpaWITHee*EE'
+
+plot(m3b.osma, layout="spring", col="yellow")   
+
+## Convert the lavaan syntax into the RAM specification
+m3b.RAM1 <- lavaan2RAM(m3b.osma, obs.variables=c("SA", "DA", "EE", "DP", "RPA"))
+m3b.RAM1
+
+## Create the model implied correlation structure with implicit diagonal constraints
+m3b.M0 <- create.vechsR(A0=m3b.RAM1$A, S0=m3b.RAM1$S)
+
+## Create the heterogeneity variance-covariance matrix
+## RE.type= either "Diag" or "Symm"
+## Transform= either "expLog" or "sqSD" for better estimation on variances
+m3b.T0 <- create.Tau2(RAM=m3b.RAM1, RE.type="Diag", Transform="expLog", RE.startvalues=0.05)
+
+m3b.fit0 <- osmasem(model.name="Model3b", Mmatrix=m3b.M0, Tmatrix=m3b.T0, data=m3.df)
+summary(m3b.fit0)
+
+anova(m3b.fit0, m3a.fit0)
+
+
+## ---------- MODERATOR ANALYSIS ---------------
+age <- as.numeric(my.data$Age[which(m2==1)])
+indiv <- as.numeric(my.data$Individualism[which(m2==1)])
+gender <- as.numeric(my.data$Female[which(m2==1)])
+
+## Moderators without NA
+index1 <- !is.na(age)
+index2 <- !is.na(gender)
+index3 <- !is.na(indiv)
+
+age <- age[index1]
+gender <- gender[index2]
+indiv <- indiv[index3]
+
+# -----------------------------------
+### AGE AS MODERATOR
+## Calculate the sampling covariance matrix of the correlations
+m2a.df <- Cor2DataFrame(model2.data, m2.n, acov = "weighted")
+
+## Add standardized Age as a moderator.
+## Standardization of the moderator improves the convergence.
+m2a.df$data <- data.frame(m2a.df$data[index1,], Age=scale(age), 
+                         check.names=FALSE)
+
+#returns only the first parts (for checking)
+head(m2a.df$data)
+
+## Check the number of studies
+pattern.na(m2a.df, show.na=FALSE, type="osmasem")
+
+## Proposed model
+m2a.osma <- 'EE ~ EE_DA*DA + EE_SA*SA
+            DP ~ DP_DA*DA + DP_SA*SA
+            RPA ~ RPA_DA*DA + RPA_SA*SA
+            SA ~~ saWITHda*DA
+            SA ~~ 1*SA
+            DA ~~ 1*DA
+            EE ~~ Erree*EE
+            DP ~~ Errdp*DP
+            RPA ~~ Errrpa*RPA
+            EE ~~ eeWITHdp*DP
+            DP ~~ dpWITHrpa*RPA
+            RPA ~~ rpaWITHee*EE'
+
+plot(m2a.osma, col="yellow")   
+
+## Convert the lavaan syntax into the RAM specification
+RAM1a <- lavaan2RAM(m2a.osma, obs.variables=c("SA", "DA", "EE", "DP", "RPA"))
+RAM1a
+
+## Create the model implied correlation structure with implicit diagonal constraints
+M0a <- create.vechsR(A0=RAM1a$A, S0=RAM1a$S)
+
+## Create the heterogeneity variance-covariance matrix
+## RE.type= either "Diag" or "Symm"
+## Transform= either "expLog" or "sqSD" for better estimation on variances
+T0a <- create.Tau2(RAM=RAM1a, RE.type="Diag", Transform="expLog", RE.startvalues=0.05)
+
+ma.fit0 <- osmasem(model.name="No moderator", Mmatrix=M0a, Tmatrix=T0a, data=m2a.df)
+summary(ma.fit0)
+
+## The variance-covariance matrix in mx.fit0 is based on the untransformed matrix
+## Extract the heterogeneity variance-covariance matrix
+VarCorr(ma.fit0)
+
+
+### MODEL with AGE on A MATRIX
+A1 <- matrix(c(0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0,
+               "0*data.Age", "0*data.Age", 0, 0, 0,
+               "0*data.Age", "0*data.Age", 0, 0, 0,
+               "0*data.Age", "0*data.Age", 0, 0, 0),
+             ncol=5, nrow=5, byrow=TRUE)
+A1
+
+M2a <- create.vechsR(A0=RAM1a$A, S0=RAM1a$S, Ax=A1)
+
+ma.fit1 <- osmasem(model.name="Age as moderator", Mmatrix=M2a, Tmatrix=T0a, data=m2a.df)
+summary(ma.fit1)
+
+## Extract the residual heterogeneity variance-covariance matrix
+VarCorr(ma.fit1)
+
+## Calculate the R2
+## Tau2.0: Heterogeneity variances without the predictors
+## Tau2.1: Heterogeneity variances with the predictors
+## R2: (Tau2.0-Tau2.1)/Tau2.0
+osmasemR2(ma.fit1, ma.fit0)
+
+## Compare the models with and without the moderator
+anova(ma.fit1, ma.fit0)
+
+## Get the estimated A0 and A1
+A0a <- mxEval(A0, ma.fit1$mx.fit)
+A0a
+
+A1a <- mxEval(A1, ma.fit1$mx.fit)
+A1a
+###--------------------------------
+### GENDER as moderator
+m2b.df <- Cor2DataFrame(model2.data, m2.n, acov = "weighted")
+
+## Add standardized Gender as a moderator.
+## Standardization of the moderator improves the convergence.
+m2b.df$data <- data.frame(m2b.df$data[index2,], Female=scale(gender), 
+                          check.names=FALSE)
+
+#returns only the first parts (for checking)
+head(m2b.df$data)
+
+## Check the number of studies
+pattern.na(m2b.df, show.na=FALSE, type="osmasem")
+
+## Proposed model
+m2b.osma <- 'EE ~ EE_DA*DA + EE_SA*SA
+            DP ~ DP_DA*DA + DP_SA*SA
+            RPA ~ RPA_DA*DA + RPA_SA*SA
+            SA ~~ saWITHda*DA
+            SA ~~ 1*SA
+            DA ~~ 1*DA
+            EE ~~ Erree*EE
+            DP ~~ Errdp*DP
+            RPA ~~ Errrpa*RPA
+            EE ~~ eeWITHdp*DP
+            DP ~~ dpWITHrpa*RPA
+            RPA ~~ rpaWITHee*EE'
+
+plot(m2a.osma, col="yellow")   
+
+## Convert the lavaan syntax into the RAM specification
+RAM1b <- lavaan2RAM(m2b.osma, obs.variables=c("SA", "DA", "EE", "DP", "RPA"))
+RAM1b
+
+## Create the model implied correlation structure with implicit diagonal constraints
+M0b <- create.vechsR(A0=RAM1b$A, S0=RAM1b$S)
+
+## Create the heterogeneity variance-covariance matrix
+## RE.type= either "Diag" or "Symm"
+## Transform= either "expLog" or "sqSD" for better estimation on variances
+T0b <- create.Tau2(RAM=RAM1b, RE.type="Diag", Transform="expLog", RE.startvalues=0.05)
+
+mb.fit0 <- osmasem(model.name="No moderator", Mmatrix=M0b, Tmatrix=T0b, data=m2b.df)
+summary(mb.fit0)
+
+## The variance-covariance matrix in mx.fit0 is based on the untransformed matrix
+## Extract the heterogeneity variance-covariance matrix
+VarCorr(mb.fit0)
+
+### MODEL with GENDER on A MATRIX
+A2 <- matrix(c(0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0,
+               "0*data.Female", "0*data.Female", 0, 0, 0,
+               "0*data.Female", "0*data.Female", 0, 0, 0,
+               "0*data.Female", "0*data.Female", 0, 0, 0),
+             ncol=5, nrow=5, byrow=TRUE)
+A2
+
+M2b <- create.vechsR(A0=RAM1b$A, S0=RAM1b$S, Ax=A2)
+
+mb.fit1 <- osmasem(model.name="Gender as moderator", Mmatrix=M2b, Tmatrix=T0b, data=m2b.df)
+summary(mb.fit1)
+
+## Extract the residual heterogeneity variance-covariance matrix
+VarCorr(mb.fit1)
+
+## Calculate the R2
+## Tau2.0: Heterogeneity variances without the predictors
+## Tau2.1: Heterogeneity variances with the predictors
+## R2: (Tau2.0-Tau2.1)/Tau2.0
+osmasemR2(mb.fit1, mb.fit0)
+
+## Compare the models with and without the moderator
+anova(mb.fit1, mb.fit0)
+
+## Get the estimated A0 and A1
+A0b <- mxEval(A0, mb.fit1$mx.fit)
+A0b
+
+A1b <- mxEval(A1, mb.fit1$mx.fit)
+A1b
+
+###--------------------------------
+### INDIV as moderator
+m2c.df <- Cor2DataFrame(model2.data, m2.n, acov = "weighted")
+
+## Add standardized Gender as a moderator.
+## Standardization of the moderator improves the convergence.
+m2c.df$data <- data.frame(m2c.df$data[index3,], Indiv=scale(indiv), 
+                          check.names=FALSE)
+
+#returns only the first parts (for checking)
+head(m2c.df$data)
+
+## Check the number of studies
+pattern.na(m2c.df, show.na=FALSE, type="osmasem")
+
+## Proposed model
+m2c.osma <- 'EE ~ EE_DA*DA + EE_SA*SA
+            DP ~ DP_DA*DA + DP_SA*SA
+            RPA ~ RPA_DA*DA + RPA_SA*SA
+            SA ~~ saWITHda*DA
+            SA ~~ 1*SA
+            DA ~~ 1*DA
+            EE ~~ Erree*EE
+            DP ~~ Errdp*DP
+            RPA ~~ Errrpa*RPA
+            EE ~~ eeWITHdp*DP
+            DP ~~ dpWITHrpa*RPA
+            RPA ~~ rpaWITHee*EE'
+
+plot(m2c.osma, col="yellow")   
+
+## Convert the lavaan syntax into the RAM specification
+RAM1c <- lavaan2RAM(m2c.osma, obs.variables=c("SA", "DA", "EE", "DP", "RPA"))
+RAM1c
+
+## Create the model implied correlation structure with implicit diagonal constraints
+M0c <- create.vechsR(A0=RAM1c$A, S0=RAM1c$S)
+
+## Create the heterogeneity variance-covariance matrix
+## RE.type= either "Diag" or "Symm"
+## Transform= either "expLog" or "sqSD" for better estimation on variances
+T0c <- create.Tau2(RAM=RAM1c, RE.type="Diag", Transform="expLog", RE.startvalues=0.05)
+
+mc.fit0 <- osmasem(model.name="No moderator", Mmatrix=M0c, Tmatrix=T0c, data=m2c.df)
+summary(mc.fit0)
+
+## The variance-covariance matrix in mx.fit0 is based on the untransformed matrix
+## Extract the heterogeneity variance-covariance matrix
+VarCorr(mc.fit0)
+
+### MODEL with GENDER on A MATRIX
+A3 <- matrix(c(0, 0, 0, 0, 0,
+               0, 0, 0, 0, 0,
+               "0*data.Indiv", "0*data.Indiv", 0, 0, 0,
+               "0*data.Indiv", "0*data.Indiv", 0, 0, 0,
+               "0*data.Indiv", "0*data.Indiv", 0, 0, 0),
+             ncol=5, nrow=5, byrow=TRUE)
+A3
+
+M2c <- create.vechsR(A0=RAM1c$A, S0=RAM1c$S, Ax=A3)
+
+mc.fit1 <- osmasem(model.name="Indiv as moderator", Mmatrix=M2c, Tmatrix=T0c, data=m2c.df)
+summary(mc.fit1)
+
+## Extract the residual heterogeneity variance-covariance matrix
+VarCorr(mc.fit1)
+
+## Calculate the R2
+## Tau2.0: Heterogeneity variances without the predictors
+## Tau2.1: Heterogeneity variances with the predictors
+## R2: (Tau2.0-Tau2.1)/Tau2.0
+osmasemR2(mc.fit1, mc.fit0)
+
+## Compare the models with and without the moderator
+anova(mc.fit1, mc.fit0)
+
+## Get the estimated A0 and A1
+A0c <- mxEval(A0, mc.fit1$mx.fit)
+A0c
+
+A1c <- mxEval(A1, mc.fit1$mx.fit)
+A1c
+
+sessionInfo()
