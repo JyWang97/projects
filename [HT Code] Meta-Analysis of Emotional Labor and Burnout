@@ -1,6 +1,5 @@
 ## FINAL COMPILED ANALYSIS
 
-setwd("C:/Users/bubbl/Documents/School Stuff (UNI)/HONORS THESIS FILES")
 library(readxl)
 
 sheets.name <- excel_sheets("final_data.xlsx")
